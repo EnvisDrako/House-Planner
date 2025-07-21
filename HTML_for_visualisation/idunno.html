@@ -1,0 +1,2258 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  
+    <meta charset="UTF-8">
+    <title>ProcTHOR House 3D Visualization</title>
+    <script src="https://unpkg.com/three@0.128.0/build/three.min.js"></script>
+    <script src="https://unpkg.com/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+    <style>
+        body { 
+            margin: 0; 
+            overflow: hidden; 
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #111;
+        }
+        
+        #scene-container {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+        }
+        
+        #ui-container {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+        }
+        
+        #info-panel {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            background: rgba(0,0,0,0.7);
+            color: white;
+            padding: 15px;
+            border-radius: 8px;
+            max-width: 320px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+            pointer-events: auto;
+            transition: all 0.3s ease;
+            transform-origin: top left;
+        }
+        
+        #info-panel.minimized {
+            transform: scale(0.8);
+            opacity: 0.6;
+        }
+        
+        #info-panel:hover {
+            transform: scale(1);
+            opacity: 1;
+        }
+        
+        #info-panel h2 {
+            margin-top: 0;
+            color: #4fc3f7;
+            border-bottom: 1px solid #4fc3f7;
+            padding-bottom: 8px;
+        }
+        
+        #loading-screen {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(20,20,20,0.95);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+            color: white;
+            transition: opacity 0.5s ease;
+        }
+        
+        .spinner {
+            width: 50px;
+            height: 50px;
+            border: 5px solid rgba(255,255,255,0.3);
+            border-radius: 50%;
+            border-top-color: #4fc3f7;
+            animation: spin 1s ease-in-out infinite;
+            margin-bottom: 20px;
+        }
+        
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        
+        #controls-panel {
+            position: absolute;
+            bottom: 20px;
+            left: 20px;
+            background: rgba(0,0,0,0.7);
+            color: white;
+            padding: 15px;
+            border-radius: 8px;
+            pointer-events: auto;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+            display: flex;
+            flex-direction: column;
+            max-width: 320px;
+        }
+        
+        .control-group {
+            margin-bottom: 10px;
+        }
+        
+        .control-group h3 {
+            margin: 0 0 10px 0;
+            font-size: 16px;
+            color: #4fc3f7;
+        }
+        
+        .control-button {
+            background: #2a2a2a;
+            color: white;
+            border: 1px solid #4fc3f7;
+            border-radius: 4px;
+            padding: 8px 12px;
+            margin: 5px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            font-size: 14px;
+        }
+        
+        .control-button:hover {
+            background: #4fc3f7;
+            color: #000;
+        }
+        
+        .control-button.active {
+            background: #4fc3f7;
+            color: #000;
+        }
+        
+        .slider-container {
+            display: flex;
+            align-items: center;
+            margin: 5px;
+        }
+        
+        .slider-container label {
+            width: 80px;
+            font-size: 14px;
+        }
+        
+        .slider-container input {
+            flex-grow: 1;
+        }
+        
+        #floor-selector {
+            display: flex;
+            justify-content: space-between;
+            padding: 5px;
+        }
+        
+        #floor-selector button {
+            flex-grow: 1;
+            margin: 0 5px;
+        }
+        
+        #tooltip {
+            position: absolute;
+            background: rgba(0,0,0,0.8);
+            color: white;
+            padding: 10px;
+            border-radius: 4px;
+            display: none;
+            pointer-events: none;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.3);
+            max-width: 200px;
+            font-size: 14px;
+            z-index: 100;
+        }
+        
+        #view-modes {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background: rgba(0,0,0,0.7);
+            color: white;
+            padding: 15px;
+            border-radius: 8px;
+            pointer-events: auto;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+        }
+        
+        #view-modes button {
+            display: block;
+            width: 100%;
+            margin-bottom: 8px;
+        }
+        
+        #room-list {
+            position: absolute;
+            top: 50%;
+            right: 20px;
+            transform: translateY(-50%);
+            background: rgba(0,0,0,0.7);
+            color: white;
+            padding: 15px;
+            border-radius: 8px;
+            pointer-events: auto;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+            max-height: 50vh;
+            overflow-y: auto;
+        }
+        
+        .room-item {
+            padding: 8px;
+            margin: 5px 0;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+        
+        .room-item:hover {
+            background: #4fc3f7;
+            color: #000;
+        }
+        
+        .help-button {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background: rgba(0,0,0,0.7);
+            color: white;
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-weight: bold;
+            font-size: 20px;
+            cursor: pointer;
+            pointer-events: auto;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.3);
+            z-index: 1000;
+        }
+        
+        .help-popup {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(0,0,0,0.9);
+            color: white;
+            padding: 30px;
+            border-radius: 10px;
+            pointer-events: auto;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.5);
+            z-index: 1100;
+            max-width: 600px;
+            max-height: 80vh;
+            overflow-y: auto;
+            display: none;
+        }
+        
+        .help-popup h2 {
+            color: #4fc3f7;
+            margin-top: 0;
+        }
+        
+        .help-popup .close-button {
+            position: absolute;
+            top: 15px;
+            right: 15px;
+            font-size: 24px;
+            cursor: pointer;
+        }
+        
+        .keyboard-shortcut {
+            display: flex;
+            margin: 10px 0;
+        }
+        
+        .key {
+            background: #333;
+            border: 1px solid #555;
+            border-radius: 4px;
+            padding: 5px 10px;
+            margin-right: 10px;
+            font-family: monospace;
+        }
+        
+        .shortcut-description {
+            flex-grow: 1;
+        }
+    </style>
+</head>
+<body>
+    <div id="scene-container"></div>
+    
+    <div id="ui-container">
+        <div id="info-panel">
+            <h2>ProcTHOR House Explorer</h2>
+            <p>Interactive 3D visualization of ProcTHOR house data.</p>
+            <div id="stats">Loading house data...</div>
+        </div>
+        
+        <div id="controls-panel">
+            <div class="control-group">
+                <h3>Visualization Options</h3>
+                <div id="element-toggles">
+                    <button class="control-button active" id="toggle-walls">Walls</button>
+                    <button class="control-button active" id="toggle-floors">Floors</button>
+                    <button class="control-button active" id="toggle-ceiling">Ceiling</button>
+                    <button class="control-button active" id="toggle-doors">Doors</button>
+                    <button class="control-button active" id="toggle-windows">Windows</button>
+                    <button class="control-button active" id="toggle-furniture">Furniture</button>
+                </div>
+            </div>
+            
+            <div class="control-group">
+                <h3>Camera Controls</h3>
+                <div>
+                    <button class="control-button" id="top-view">Top View</button>
+                    <button class="control-button" id="first-person">First Person</button>
+                    <button class="control-button" id="reset-camera">Reset Camera</button>
+                </div>
+                <div class="slider-container">
+                    <label>Height:</label>
+                    <input type="range" id="camera-height" min="0.5" max="10" step="0.1" value="1.7">
+                </div>
+            </div>
+            
+            <div class="control-group">
+                <h3>Floor Navigation</h3>
+                <div id="floor-selector">
+                    <!-- Floor buttons will be added dynamically -->
+                    <button class="control-button active" data-floor="0">Ground Floor</button>
+                </div>
+            </div>
+        </div>
+        
+        <div id="tooltip"></div>
+        
+        <div class="help-button">?</div>
+        
+        <div class="help-popup">
+            <div class="close-button">×</div>
+            <h2>Navigation Help</h2>
+            <p>Use the following controls to navigate the 3D house visualization:</p>
+            
+            <h3>Mouse Controls</h3>
+            <ul>
+                <li>Left-click + drag: Rotate camera</li>
+                <li>Right-click + drag: Pan camera</li>
+                <li>Scroll wheel: Zoom in/out</li>
+                <li>Double-click on object: View information</li>
+            </ul>
+            
+            <h3>Keyboard Controls</h3>
+            <div class="keyboard-shortcut">
+                <span class="key">W</span>
+                <span class="shortcut-description">Move forward</span>
+            </div>
+            <div class="keyboard-shortcut">
+                <span class="key">S</span>
+                <span class="shortcut-description">Move backward</span>
+            </div>
+            <div class="keyboard-shortcut">
+                <span class="key">A</span>
+                <span class="shortcut-description">Move left</span>
+            </div>
+            <div class="keyboard-shortcut">
+                <span class="key">D</span>
+                <span class="shortcut-description">Move right</span>
+            </div>
+            <div class="keyboard-shortcut">
+                <span class="key">Q</span>
+                <span class="shortcut-description">Move down</span>
+            </div>
+            <div class="keyboard-shortcut">
+                <span class="key">E</span>
+                <span class="shortcut-description">Move up</span>
+            </div>
+            <div class="keyboard-shortcut">
+                <span class="key">R</span>
+                <span class="shortcut-description">Reset camera</span>
+            </div>
+            <div class="keyboard-shortcut">
+                <span class="key">F</span>
+                <span class="shortcut-description">Toggle first person mode</span>
+            </div>
+            <div class="keyboard-shortcut">
+                <span class="key">T</span>
+                <span class="shortcut-description">Toggle top view</span>
+            </div>
+            <div class="keyboard-shortcut">
+                <span class="key">H</span>
+                <span class="shortcut-description">Toggle help</span>
+            </div>
+            <div class="keyboard-shortcut">
+                <span class="key">1-9</span>
+                <span class="shortcut-description">Select floor (if available)</span>
+            </div>
+        </div>
+    </div>
+    
+    <div id="loading-screen">
+        <div class="spinner"></div>
+        <h2>Loading ProcTHOR House...</h2>
+        <p>Please wait while we prepare your 3D visualization</p>
+    </div>
+    
+
+    <script>
+        alert('Inline script is running!');
+        console.log('▶️ Main script loaded');
+
+        // Constants
+        const WALL_HEIGHT = 2.8;
+        const FLOOR_HEIGHT = 0.1;
+        const DOOR_WIDTH = 0.9;
+        const DOOR_HEIGHT = 2.1;
+        const WINDOW_HEIGHT = 1.2;
+        const WINDOW_WIDTH = 1.0;
+        const WINDOW_SILL_HEIGHT = 1.0;
+        
+        // Global variables
+        let scene, camera, renderer, controls;
+        let raycaster, mouse, intersectedObject;
+        let keyStates = {};
+        let clock = new THREE.Clock();
+        let inFirstPersonMode = false;
+        
+        // Object collections
+        let walls = [];
+        let floors = [];
+        let ceilings = [];
+        let doors = [];
+        let windows = [];
+        let furniture = [];
+        let rooms = [];
+        let currentFloor = 0;
+        
+        // Textures
+        let textures = {
+            wall: { 
+                map: createTexture('#f5f5f5', 512, 512),
+                normalMap: createTexture('#808080', 512, 512, true),
+                roughnessMap: createTexture('#808080', 512, 512)
+            },
+            floor: {
+                map: createTexture('#e0e0e0', 512, 512, false, 'wood'),
+                normalMap: createTexture('#808080', 512, 512, true, 'wood'),
+                roughnessMap: createTexture('#c0c0c0', 512, 512, false, 'wood')
+            },
+            ceiling: {
+                map: createTexture('#ffffff', 512, 512),
+                normalMap: createTexture('#e0e0e0', 512, 512, true),
+                roughnessMap: createTexture('#e0e0e0', 512, 512)
+            },
+            door: {
+                map: createTexture('#8B4513', 512, 512, false, 'wood'),
+                normalMap: createTexture('#8B4513', 512, 512, true, 'wood'),
+                roughnessMap: createTexture('#8B4513', 512, 512, false, 'wood')
+            },
+            window: {
+                map: createTexture('#add8e6', 512, 512, false, 'glass'),
+                normalMap: createTexture('#add8e6', 512, 512, true),
+                roughnessMap: createTexture('#ffffff', 512, 512),
+                transparent: true,
+                opacity: 0.5
+            },
+            furniture: {
+                table: createTexture('#A0522D', 512, 512, false, 'wood'),
+                chair: createTexture('#8B4513', 512, 512, false, 'wood'),
+                bed: createTexture('#4169E1', 512, 512, false, 'fabric'),
+                sofa: createTexture('#808080', 512, 512, false, 'fabric'),
+                cabinet: createTexture('#D2B48C', 512, 512, false, 'wood')
+            },
+            carpet: createTexture('#5d8aa8', 512, 512, false, 'carpet')
+        };
+        
+        // Sample ProcTHOR data structure
+        const sampleData = {
+            "walls": [
+                // Living Room
+                {"id": "wall_1", "roomId": "living_room", "polygon": [{"x": -5, "z": -5}, {"x": 5, "z": -5}, {"x": 5, "z": 0}, {"x": -5, "z": 0}], "height": 3, "floor": 0},
+                {"id": "wall_2", "roomId": "living_room", "polygon": [{"x": -5, "z": -5}, {"x": -5, "z": 0}, {"x": -2, "z": 0}, {"x": -2, "z": -5}], "height": 3, "floor": 0},
+                {"id": "wall_3", "roomId": "living_room", "polygon": [{"x": 2, "z": -5}, {"x": 5, "z": -5}, {"x": 5, "z": 0}, {"x": 2, "z": 0}], "height": 3, "floor": 0},
+                {"id": "wall_4", "roomId": "living_room", "polygon": [{"x": -5, "z": 0}, {"x": 5, "z": 0}, {"x": 5, "z": 5}, {"x": -5, "z": 5}], "height": 3, "floor": 0},
+                
+                // Kitchen
+                {"id": "wall_5", "roomId": "kitchen", "polygon": [{"x": 5, "z": -5}, {"x": 10, "z": -5}, {"x": 10, "z": 5}, {"x": 5, "z": 5}], "height": 3, "floor": 0},
+                
+                // Bedroom
+                {"id": "wall_6", "roomId": "bedroom", "polygon": [{"x": -10, "z": -5}, {"x": -5, "z": -5}, {"x": -5, "z": 5}, {"x": -10, "z": 5}], "height": 3, "floor": 0}
+            ],
+            "floors": [
+                {"id": "floor_living", "roomId": "living_room", "polygon": [{"x": -5, "z": -5}, {"x": 5, "z": -5}, {"x": 5, "z": 5}, {"x": -5, "z": 5}], "height": 0, "floor": 0},
+                {"id": "floor_kitchen", "roomId": "kitchen", "polygon": [{"x": 5, "z": -5}, {"x": 10, "z": -5}, {"x": 10, "z": 5}, {"x": 5, "z": 5}], "height": 0, "floor": 0},
+                {"id": "floor_bedroom", "roomId": "bedroom", "polygon": [{"x": -10, "z": -5}, {"x": -5, "z": -5}, {"x": -5, "z": 5}, {"x": -10, "z": 5}], "height": 0, "floor": 0}
+            ],
+            "ceilings": [
+                {"id": "ceiling_living", "roomId": "living_room", "polygon": [{"x": -5, "z": -5}, {"x": 5, "z": -5}, {"x": 5, "z": 5}, {"x": -5, "z": 5}], "height": 3, "floor": 0},
+                {"id": "ceiling_kitchen", "roomId": "kitchen", "polygon": [{"x": 5, "z": -5}, {"x": 10, "z": -5}, {"x": 10, "z": 5}, {"x": 5, "z": 5}], "height": 3, "floor": 0},
+                {"id": "ceiling_bedroom", "roomId": "bedroom", "polygon": [{"x": -10, "z": -5}, {"x": -5, "z": -5}, {"x": -5, "z": 5}, {"x": -10, "z": 5}], "height": 3, "floor": 0}
+            ],
+            "doors": [
+                {"id": "door_living_hallway", "assetPosition": {"x": 0, "y": 0, "z": -5}, "rotation": 0, "width": 1, "height": 2.1, "floor": 0},
+                {"id": "door_living_kitchen", "assetPosition": {"x": 5, "y": 0, "z": 0}, "rotation": 90, "width": 1, "height": 2.1, "floor": 0},
+                {"id": "door_living_bedroom", "assetPosition": {"x": -5, "y": 0, "z": 0}, "rotation": 90, "width": 1, "height": 2.1, "floor": 0}
+            ],
+            "windows": [
+                {"id": "window_living", "assetPosition": {"x": 0, "y": 1.2, "z": 5}, "rotation": 0, "width": 2, "height": 1.2, "floor": 0},
+                {"id": "window_kitchen", "assetPosition": {"x": 10, "y": 1.2, "z": 0}, "rotation": 90, "width": 1.5, "height": 1.2, "floor": 0},
+                {"id": "window_bedroom", "assetPosition": {"x": -10, "y": 1.2, "z": 0}, "rotation": 90, "width": 1.5, "height": 1.2, "floor": 0}
+            ],
+            "furniture": [
+                // Living room furniture
+                {"id": "sofa_1", "assetPosition": {"x": 0, "y": 0, "z": 3}, "assetType": "sofa", "rotation": 0, "floor": 0, "roomId": "living_room"},
+                {"id": "table_1", "assetPosition": {"x": 0, "y": 0, "z": 1}, "assetType": "table", "rotation": 0, "floor": 0, "roomId": "living_room"},
+                {"id": "tv_stand", "assetPosition": {"x": 0, "y": 0, "z": -3}, "assetType": "cabinet", "rotation": 0, "floor": 0, "roomId": "living_room"},
+                
+                // Kitchen furniture
+                {"id": "kitchen_table", "assetPosition": {"x": 7.5, "y": 0, "z": 0}, "assetType": "table", "rotation": 0, "floor": 0, "roomId": "kitchen"},
+                {"id": "kitchen_chair_1", "assetPosition": {"x": 7, "y": 0, "z": -1}, "assetType": "chair", "rotation": 0, "floor": 0, "roomId": "kitchen"},
+                {"id": "kitchen_chair_2", "assetPosition": {"x": 8, "y": 0, "z": -1}, "assetType": "chair", "rotation": 0, "floor": 0, "roomId": "kitchen"},
+                {"id": "kitchen_chair_3", "assetPosition": {"x": 7, "y": 0, "z": 1}, "assetType": "chair", "rotation": 180, "floor": 0, "roomId": "kitchen"},
+                {"id": "kitchen_chair_4", "assetPosition": {"x": 8, "y": 0, "z": 1}, "assetType": "chair", "rotation": 180, "floor": 0, "roomId": "kitchen"},
+                
+                // Bedroom furniture
+                {"id": "bed_1", "assetPosition": {"x": -7.5, "y": 0, "z": 0}, "assetType": "bed", "rotation": 90, "floor": 0, "roomId": "bedroom"},
+                {"id": "wardrobe_1", "assetPosition": {"x": -9, "y": 0, "z": -3}, "assetType": "cabinet", "rotation": 0, "floor": 0, "roomId": "bedroom"}
+            ],
+            "rooms": [
+                {"id": "living_room", "name": "Living Room", "floor": 0},
+                {"id": "kitchen", "name": "Kitchen", "floor": 0},
+                {"id": "bedroom", "name": "Bedroom", "floor": 0}
+            ]
+        };
+        
+        // Initialize the application
+        init();
+        
+        function init() {
+            // Create scene
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0x87CEEB); // Sky blue background
+            
+            // Create fog for atmosphere
+            scene.fog = new THREE.FogExp2(0x87CEEB, 0.01);
+            
+            // Create camera
+            camera = new THREE.PerspectiveCamera(70, window.innerWidth / window.innerHeight, 0.1, 1000);
+            camera.position.set(15, 15, 15);
+            camera.lookAt(0, 0, 0);
+            
+            // Create renderer
+            renderer = new THREE.WebGLRenderer({ antialias: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.shadowMap.enabled = true;
+            renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+            document.getElementById('scene-container').appendChild(renderer.domElement);
+            
+            // Setup raycaster for interaction
+            raycaster = new THREE.Raycaster();
+            mouse = new THREE.Vector2();
+            
+            // Add lights
+            setupLights();
+            
+            // Add ground
+            createGround();
+            
+            // Create custom orbit controls
+            setupControls();
+            
+            // Load house data
+            loadHouseData();
+            
+            // Add event listeners
+            window.addEventListener('resize', onWindowResize);
+            window.addEventListener('mousemove', onMouseMove);
+            window.addEventListener('click', onClick);
+            window.addEventListener('keydown', onKeyDown);
+            window.addEventListener('keyup', onKeyUp);
+            
+            // Setup UI event listeners
+            document.getElementById('toggle-walls').addEventListener('click', () => toggleGroup(walls, 'toggle-walls'));
+            document.getElementById('toggle-floors').addEventListener('click', () => toggleGroup(floors, 'toggle-floors'));
+            document.getElementById('toggle-ceiling').addEventListener('click', () => toggleGroup(ceilings, 'toggle-ceiling'));
+            document.getElementById('toggle-doors').addEventListener('click', () => toggleGroup(doors, 'toggle-doors'));
+            document.getElementById('toggle-windows').addEventListener('click', () => toggleGroup(windows, 'toggle-windows'));
+            document.getElementById('toggle-furniture').addEventListener('click', () => toggleGroup(furniture, 'toggle-furniture'));
+            
+            document.getElementById('top-view').addEventListener('click', setTopView);
+            document.getElementById('first-person').addEventListener('click', toggleFirstPersonMode);
+            document.getElementById('reset-camera').addEventListener('click', resetCamera);
+            
+            document.getElementById('camera-height').addEventListener('input', (e) => {
+                if (inFirstPersonMode) {
+                    camera.position.y = parseFloat(e.target.value);
+                }
+            });
+            
+            // Help popup
+            document.querySelector('.help-button').addEventListener('click', () => {
+                document.querySelector('.help-popup').style.display = 'block';
+            });
+            
+            document.querySelector('.help-popup .close-button').addEventListener('click', () => {
+                document.querySelector('.help-popup').style.display = 'none';
+            });
+            
+            // Start the animation loop
+            animate();
+        }
+        
+        function createTexture(color, width, height, isNormalMap = false, pattern = null) {
+            const canvas = document.createElement('canvas');
+            canvas.width = width;
+            canvas.height = height;
+            const ctx = canvas.getContext('2d');
+            
+            // Fill with base color
+            ctx.fillStyle = color;
+            ctx.fillRect(0, 0, width, height);
+            
+            if (pattern) {
+                switch (pattern) {
+                    case 'wood':
+                        createWoodTexture(ctx, width, height, color);
+                        break;
+                    case 'glass':
+                        createGlassTexture(ctx, width, height, color);
+                        break;
+                    case 'fabric':
+                        createFabricTexture(ctx, width, height, color);
+                        break;
+                    case 'carpet':
+                        createCarpetTexture(ctx, width, height, color);
+                        break;
+                }
+            } else if (isNormalMap) {
+                createNoiseTexture(ctx, width, height);
+            } else {
+                createNoiseTexture(ctx, width, height, 0.05);
+            }
+            
+            const texture = new THREE.CanvasTexture(canvas);
+            texture.wrapS = THREE.RepeatWrapping;
+            texture.wrapT = THREE.RepeatWrapping;
+            return texture;
+        }
+        
+        function createWoodTexture(ctx, width, height, color) {
+            // Base color
+            ctx.fillStyle = color;
+            ctx.fillRect(0, 0, width, height);
+            
+            // Wood grain
+            const numGrains = 24;
+            const grainWidth = width / numGrains;
+            
+            for (let i = 0; i < numGrains; i++) {
+                const x = i * grainWidth;
+                ctx.fillStyle = adjustColorBrightness(color, (Math.random() - 0.5) * 20);
+                ctx.fillRect(x, 0, grainWidth, height);
+                
+                // Add some knots
+                if (Math.random() < 0.1) {
+                    const knotX = x + Math.random() * grainWidth;
+                    const knotY = Math.random() * height;
+                    const knotRadius = 5 + Math.random() * 10;
+                    
+                    const gradient = ctx.createRadialGradient(
+                        knotX, knotY, 0,
+                        knotX, knotY, knotRadius
+                    );
+                    gradient.addColorStop(0, adjustColorBrightness(color, -30));
+    gradient.addColorStop(1, adjustColorBrightness(color, -10));
+    
+    ctx.fillStyle = gradient;
+    ctx.beginPath();
+    ctx.arc(knotX, knotY, knotRadius, 0, Math.PI * 2);
+    ctx.fill();
+  }
+}
+
+// Add subtle horizontal lines for planks
+const numPlanks = 8;
+const plankHeight = height / numPlanks;
+
+for (let i = 0; i < numPlanks; i++) {
+  const y = i * plankHeight;
+  ctx.strokeStyle = adjustColorBrightness(color, -10);
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(0, y);
+  ctx.lineTo(width, y);
+  ctx.stroke();
+}
+}
+
+function createGlassTexture(ctx, width, height, color) {
+// Base color with high transparency
+ctx.fillStyle = color;
+ctx.fillRect(0, 0, width, height);
+
+// Add subtle reflections
+for (let i = 0; i < 20; i++) {
+  const x = Math.random() * width;
+  const y = Math.random() * height;
+  const size = 5 + Math.random() * 20;
+  
+  const gradient = ctx.createRadialGradient(
+    x, y, 0,
+    x, y, size
+  );
+  gradient.addColorStop(0, 'rgba(255, 255, 255, 0.7)');
+  gradient.addColorStop(1, 'rgba(255, 255, 255, 0)');
+  
+  ctx.fillStyle = gradient;
+  ctx.beginPath();
+  ctx.arc(x, y, size, 0, Math.PI * 2);
+  ctx.fill();
+}
+
+// Add some texture lines
+ctx.strokeStyle = 'rgba(255, 255, 255, 0.1)';
+ctx.lineWidth = 1;
+
+for (let i = 0; i < 10; i++) {
+  const y = Math.random() * height;
+  ctx.beginPath();
+  ctx.moveTo(0, y);
+  ctx.lineTo(width, y);
+  ctx.stroke();
+}
+}
+
+function createFabricTexture(ctx, width, height, color) {
+// Base color
+ctx.fillStyle = color;
+ctx.fillRect(0, 0, width, height);
+
+// Create fabric weave pattern
+const weaveSize = 4;
+for (let x = 0; x < width; x += weaveSize) {
+  for (let y = 0; y < height; y += weaveSize) {
+    if ((x / weaveSize + y / weaveSize) % 2 === 0) {
+      ctx.fillStyle = adjustColorBrightness(color, 5);
+    } else {
+      ctx.fillStyle = adjustColorBrightness(color, -5);
+    }
+    ctx.fillRect(x, y, weaveSize, weaveSize);
+  }
+}
+
+// Add subtle highlights
+for (let i = 0; i < 100; i++) {
+  const x = Math.random() * width;
+  const y = Math.random() * height;
+  
+  ctx.fillStyle = 'rgba(255, 255, 255, 0.05)';
+  ctx.fillRect(x, y, 2, 2);
+}
+}
+
+function createCarpetTexture(ctx, width, height, color) {
+// Base color
+ctx.fillStyle = color;
+ctx.fillRect(0, 0, width, height);
+
+// Add carpet fiber effect
+for (let i = 0; i < 5000; i++) {
+  const x = Math.random() * width;
+  const y = Math.random() * height;
+  const length = 1 + Math.random() * 3;
+  const angle = Math.random() * Math.PI * 2;
+  
+  ctx.strokeStyle = adjustColorBrightness(color, (Math.random() - 0.5) * 20);
+  ctx.lineWidth = 1;
+  
+  ctx.beginPath();
+  ctx.moveTo(x, y);
+  ctx.lineTo(
+    x + Math.cos(angle) * length,
+    y + Math.sin(angle) * length
+  );
+  ctx.stroke();
+}
+
+// Add simple pattern
+if (Math.random() > 0.5) {
+  const patternSize = 50 + Math.random() * 50;
+  ctx.strokeStyle = adjustColorBrightness(color, -20);
+  ctx.lineWidth = 2;
+  
+  for (let x = 0; x < width; x += patternSize) {
+    for (let y = 0; y < height; y += patternSize) {
+      if (Math.random() > 0.7) {
+        ctx.beginPath();
+        ctx.arc(x, y, patternSize / 4, 0, Math.PI * 2);
+        ctx.stroke();
+      }
+    }
+  }
+}
+}
+
+function createNoiseTexture(ctx, width, height, intensity = 0.2) {
+const imageData = ctx.getImageData(0, 0, width, height);
+const data = imageData.data;
+
+for (let i = 0; i < data.length; i += 4) {
+  const noise = (Math.random() - 0.5) * 255 * intensity;
+  
+  data[i] = Math.max(0, Math.min(255, data[i] + noise));
+  data[i+1] = Math.max(0, Math.min(255, data[i+1] + noise));
+  data[i+2] = Math.max(0, Math.min(255, data[i+2] + noise));
+}
+
+ctx.putImageData(imageData, 0, 0);
+}
+
+function adjustColorBrightness(color, percent) {
+// Convert hex to RGB
+let r, g, b;
+if (color.startsWith('#')) {
+  r = parseInt(color.substr(1, 2), 16);
+  g = parseInt(color.substr(3, 2), 16);
+  b = parseInt(color.substr(5, 2), 16);
+} else if (color.startsWith('rgb')) {
+  const match = color.match(/\d+/g);
+  r = parseInt(match[0]);
+  g = parseInt(match[1]);
+  b = parseInt(match[2]);
+} else {
+  // Default to gray if color format not recognized
+  r = g = b = 128;
+}
+
+// Adjust brightness
+r = Math.max(0, Math.min(255, r + percent));
+g = Math.max(0, Math.min(255, g + percent));
+b = Math.max(0, Math.min(255, b + percent));
+
+// Convert back to hex
+return `rgb(${Math.round(r)}, ${Math.round(g)}, ${Math.round(b)})`;
+}
+
+function setupLights() {
+// Ambient light
+const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
+scene.add(ambientLight);
+
+// Directional light (sun)
+const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
+directionalLight.position.set(10, 20, 15);
+directionalLight.castShadow = true;
+directionalLight.shadow.mapSize.width = 2048;
+directionalLight.shadow.mapSize.height = 2048;
+directionalLight.shadow.camera.near = 0.5;
+directionalLight.shadow.camera.far = 50;
+directionalLight.shadow.camera.left = -20;
+directionalLight.shadow.camera.right = 20;
+directionalLight.shadow.camera.top = 20;
+directionalLight.shadow.camera.bottom = -20;
+scene.add(directionalLight);
+
+// Add some point lights for interiors
+const pointLight1 = new THREE.PointLight(0xffffcc, 0.8, 20);
+pointLight1.position.set(0, 2, 0);
+scene.add(pointLight1);
+
+const pointLight2 = new THREE.PointLight(0xffffcc, 0.8, 20);
+pointLight2.position.set(-7.5, 2, 0);
+scene.add(pointLight2);
+
+const pointLight3 = new THREE.PointLight(0xffffcc, 0.8, 20);
+pointLight3.position.set(7.5, 2, 0);
+scene.add(pointLight3);
+}
+
+function createGround() {
+// Create a large ground plane
+const groundGeometry = new THREE.PlaneGeometry(100, 100);
+const groundMaterial = new THREE.MeshStandardMaterial({
+  color: 0x7cac7c,
+  roughness: 0.8,
+  metalness: 0.1
+});
+const ground = new THREE.Mesh(groundGeometry, groundMaterial);
+ground.rotation.x = -Math.PI / 2;
+ground.position.y = -0.1;
+ground.receiveShadow = true;
+scene.add(ground);
+
+// Add some grass texture
+const grassTextureSize = 20;
+for (let i = 0; i < 2000; i++) {
+  const bladeHeight = 0.1 + Math.random() * 0.2;
+  const bladeWidth = 0.05 + Math.random() * 0.05;
+  
+  const bladeGeometry = new THREE.PlaneGeometry(bladeWidth, bladeHeight);
+  const bladeMaterial = new THREE.MeshBasicMaterial({
+    color: new THREE.Color(
+      0.2 + Math.random() * 0.3,
+      0.5 + Math.random() * 0.3,
+      0.1 + Math.random() * 0.2
+    ),
+    side: THREE.DoubleSide
+  });
+  
+  const blade = new THREE.Mesh(bladeGeometry, bladeMaterial);
+  
+  const x = (Math.random() - 0.5) * grassTextureSize * 5;
+  const z = (Math.random() - 0.5) * grassTextureSize * 5;
+  
+  // Don't place grass where the house will be
+  if (Math.abs(x) < 12 && Math.abs(z) < 7) {
+    continue;
+  }
+  
+  blade.position.set(x, 0, z);
+  blade.rotation.y = Math.random() * Math.PI;
+  blade.rotation.x = Math.random() * 0.3;
+  
+  scene.add(blade);
+}
+}
+
+function setupControls() {
+    // Add OrbitControls from three.js examples
+    const OrbitControls = THREE.OrbitControls;
+    controls = new OrbitControls(camera, renderer.domElement);
+    
+    // Configure controls
+    controls.enableDamping = true;
+    controls.dampingFactor = 0.05;
+    controls.screenSpacePanning = true;
+    controls.minDistance = 5;
+    controls.maxDistance = 50;
+    controls.maxPolarAngle = Math.PI / 2;
+    controls.target.set(0, 0, 0);
+
+    // First-person controls handler
+    window.addEventListener('keydown', (e) => {
+        if (!inFirstPersonMode) return;
+        
+        const moveSpeed = 0.1;
+        const direction = new THREE.Vector3();
+        const rotation = new THREE.Euler(0, 0, 0, 'YXZ');
+        
+        rotation.set(camera.rotation.x, camera.rotation.y, 0);
+        
+        if (keyStates['w'] || keyStates['W']) {
+            direction.z = -moveSpeed;
+        }
+        if (keyStates['s'] || keyStates['S']) {
+            direction.z = moveSpeed;
+        }
+        if (keyStates['a'] || keyStates['A']) {
+            direction.x = -moveSpeed;
+        }
+        if (keyStates['d'] || keyStates['D']) {
+            direction.x = moveSpeed;
+        }
+        if (keyStates['q'] || keyStates['Q']) {
+            direction.y = -moveSpeed;
+        }
+        if (keyStates['e'] || keyStates['E']) {
+            direction.y = moveSpeed;
+        }
+
+        direction.applyEuler(rotation);
+        camera.position.add(direction);
+    });
+}
+
+function loadHouseData() {
+  console.log("Fetching house.json…");
+  const loader = document.getElementById('loading-screen');
+  loader.style.display = 'flex';
+
+  fetch('house.json')
+    .then(res => {
+      if (!res.ok) throw new Error(`Network error: ${res.status}`);
+      return res.json();
+    })
+    .then(data => {
+      // Only run the strict validator on the sample schema
+      if (
+        data.walls && data.floors && data.ceilings &&
+        data.doors && data.windows && data.furniture && data.rooms
+      ) {
+        validateSampleData(data);
+      }
+      processHouseData(data);
+      updateStatsPanel();
+    })
+    .then(() => {
+      // hide loader after a frame
+      setTimeout(() => loader.style.display = 'none', 500);
+    })
+    .catch(err => {
+      console.error("Error loading house data:", err);
+      loader.innerHTML = `
+        <div class="spinner"></div>
+        <h2>Error Loading House Data</h2>
+        <p>${err.message}</p>
+        <button onclick="window.location.reload()">Try Again</button>
+      `;
+    });
+}
+
+function validateSampleData(data) {
+    // Check if data is an object
+    if (typeof data !== 'object' || data === null) {
+        throw new Error("Invalid data format: Expected an object");
+    }
+
+    // Check required top-level properties
+    const requiredProperties = ['walls', 'floors', 'ceilings', 'doors', 'windows', 'furniture', 'rooms'];
+    for (const prop of requiredProperties) {
+        if (!(prop in data)) {
+            throw new Error(`Missing required property: ${prop}`);
+        }
+        if (!Array.isArray(data[prop])) {
+            throw new Error(`Property ${prop} must be an array`);
+        }
+    }
+
+    // Validate walls
+    data.walls.forEach((wall, index) => {
+        if (!wall.id || !wall.roomId || !wall.polygon || !Array.isArray(wall.polygon)) {
+            throw new Error(`Invalid wall at index ${index}: Missing required properties`);
+        }
+    });
+
+    // Validate floors
+    data.floors.forEach((floor, index) => {
+        if (!floor.id || !floor.roomId || !floor.polygon || !Array.isArray(floor.polygon)) {
+            throw new Error(`Invalid floor at index ${index}: Missing required properties`);
+        }
+    });
+
+    // Validate furniture
+    data.furniture.forEach((item, index) => {
+        if (!item.id || !item.assetType || !item.assetPosition || !item.roomId) {
+            throw new Error(`Invalid furniture at index ${index}: Missing required properties`);
+        }
+    });
+
+    // Validate rooms
+    data.rooms.forEach((room, index) => {
+        if (!room.id || !room.name) {
+            throw new Error(`Invalid room at index ${index}: Missing required properties`);
+        }
+    });
+
+    console.log("Sample data validation passed");
+}
+
+function processHouseData(data) {
+    try {
+        // Clear existing objects
+        clearSceneObjects();
+
+        // Process each data type
+        if (data.walls) createWalls(data.walls);
+        if (data.floors) createFloors(data.floors);
+        if (data.ceilings) createCeilings(data.ceilings);
+        if (data.doors) createDoors(data.doors);
+        if (data.windows) createWindows(data.windows);
+        if (data.furniture) createFurniture(data.furniture);
+
+        // Store room data
+        rooms = data.rooms || [];
+
+        // Set up floor navigation UI
+        setupFloorNavigation(data);
+
+        // Force a render to ensure everything is visible
+        renderer.render(scene, camera);
+    } catch (error) {
+        console.error("Error processing house data:", error);
+        throw new Error(`Failed to process house data: ${error.message}`);
+    }
+}
+
+function clearSceneObjects() {
+// Remove existing objects from scene and arrays
+walls.forEach(wall => scene.remove(wall));
+floors.forEach(floor => scene.remove(floor));
+ceilings.forEach(ceiling => scene.remove(ceiling));
+doors.forEach(door => scene.remove(door));
+windows.forEach(window => scene.remove(window));
+furniture.forEach(item => scene.remove(item));
+
+walls = [];
+floors = [];
+ceilings = [];
+doors = [];
+windows = [];
+furniture = [];
+}
+
+function createWalls(wallsData) {
+wallsData.forEach(wallData => {
+  // Create a group for the wall segments
+  const wallGroup = new THREE.Group();
+  wallGroup.userData = {
+    id: wallData.id,
+    type: 'wall',
+    roomId: wallData.roomId,
+    floor: wallData.floor
+  };
+  
+  // Get the polygon points
+  const points = wallData.polygon;
+  
+  // Create wall segments between each pair of points
+  for (let i = 0; i < points.length; i++) {
+    const p1 = points[i];
+    const p2 = points[(i + 1) % points.length];
+    
+    // Skip if points are too close
+    const distance = Math.sqrt(Math.pow(p2.x - p1.x, 2) + Math.pow(p2.z - p1.z, 2));
+    if (distance < 0.1) continue;
+    
+    // Create wall geometry
+    const wallHeight = wallData.height || WALL_HEIGHT;
+    const wallWidth = distance;
+    const wallGeometry = new THREE.BoxGeometry(wallWidth, wallHeight, 0.1);
+    
+    // Create wall material
+    const wallMaterial = new THREE.MeshStandardMaterial({
+      map: textures.wall.map,
+      normalMap: textures.wall.normalMap,
+      roughnessMap: textures.wall.roughnessMap,
+      roughness: 0.8,
+      metalness: 0.1
+    });
+    
+    // Create the wall mesh
+    const wall = new THREE.Mesh(wallGeometry, wallMaterial);
+    
+    // Position the wall
+    const centerX = (p1.x + p2.x) / 2;
+    const centerZ = (p1.z + p2.z) / 2;
+    const angleY = Math.atan2(p2.z - p1.z, p2.x - p1.x) + Math.PI / 2;
+    
+    wall.position.set(centerX, wallHeight / 2, centerZ);
+    wall.rotation.y = angleY;
+    
+    wall.castShadow = true;
+    wall.receiveShadow = true;
+    
+    // Add to the wall group
+    wallGroup.add(wall);
+  }
+  
+  // Add the wall group to the scene
+  scene.add(wallGroup);
+  walls.push(wallGroup);
+});
+}
+
+function createFloors(floorsData) {
+floorsData.forEach(floorData => {
+  // Get the polygon points
+  const points = floorData.polygon;
+  
+  // Convert to 2D shape
+  const shape = new THREE.Shape();
+  shape.moveTo(points[0].x, points[0].z);
+  for (let i = 1; i < points.length; i++) {
+    shape.lineTo(points[i].x, points[i].z);
+  }
+  shape.lineTo(points[0].x, points[0].z);
+  
+  // Create floor geometry
+  const floorGeometry = new THREE.ShapeGeometry(shape);
+  
+  // Create floor material
+  const floorMaterial = new THREE.MeshStandardMaterial({
+    map: textures.floor.map,
+    normalMap: textures.floor.normalMap,
+    roughnessMap: textures.floor.roughnessMap,
+    roughness: 0.8,
+    metalness: 0.1
+  });
+  
+  // Create the floor mesh
+  const floor = new THREE.Mesh(floorGeometry, floorMaterial);
+  
+  // Position the floor
+  floor.rotation.x = -Math.PI / 2;
+  floor.position.y = floorData.height || 0;
+  
+  floor.receiveShadow = true;
+  
+  // Add userData
+  floor.userData = {
+    id: floorData.id,
+    type: 'floor',
+    roomId: floorData.roomId,
+    floor: floorData.floor
+  };
+  
+  // Add to scene
+  scene.add(floor);
+  floors.push(floor);
+  
+  // Add carpet for living room
+  if (floorData.roomId === 'living_room') {
+    // Create a slightly smaller carpet
+    const carpetShape = new THREE.Shape();
+    const carpetInset = 1;
+    
+    const scaledPoints = points.map(p => ({
+      x: p.x * 0.8 + (1 - 0.8) * (points.reduce((sum, pt) => sum + pt.x, 0) / points.length),
+      z: p.z * 0.8 + (1 - 0.8) * (points.reduce((sum, pt) => sum + pt.z, 0) / points.length)
+    }));
+    
+    carpetShape.moveTo(scaledPoints[0].x, scaledPoints[0].z);
+    for (let i = 1; i < scaledPoints.length; i++) {
+      carpetShape.lineTo(scaledPoints[i].x, scaledPoints[i].z);
+    }
+    carpetShape.lineTo(scaledPoints[0].x, scaledPoints[0].z);
+    
+    const carpetGeometry = new THREE.ShapeGeometry(carpetShape);
+    const carpetMaterial = new THREE.MeshStandardMaterial({
+      map: textures.carpet,
+      roughness: 0.9,
+      metalness: 0.0
+    });
+    
+    const carpet = new THREE.Mesh(carpetGeometry, carpetMaterial);
+    carpet.rotation.x = -Math.PI / 2;
+    carpet.position.y = floorData.height + 0.01;
+    
+    scene.add(carpet);
+    floors.push(carpet);
+  }
+});
+}
+
+function createCeilings(ceilingsData) {
+ceilingsData.forEach(ceilingData => {
+  // Get the polygon points
+  const points = ceilingData.polygon;
+  
+  // Convert to 2D shape
+  const shape = new THREE.Shape();
+  shape.moveTo(points[0].x, points[0].z);
+  for (let i = 1; i < points.length; i++) {
+    shape.lineTo(points[i].x, points[i].z);
+  }
+  shape.lineTo(points[0].x, points[0].z);
+  
+  // Create ceiling geometry
+  const ceilingGeometry = new THREE.ShapeGeometry(shape);
+  
+  // Create ceiling material
+  const ceilingMaterial = new THREE.MeshStandardMaterial({
+    map: textures.ceiling.map,
+    normalMap: textures.ceiling.normalMap,
+    roughnessMap: textures.ceiling.roughnessMap,
+    roughness: 0.8,
+    metalness: 0.1
+  });
+  
+  // Create the ceiling mesh
+  const ceiling = new THREE.Mesh(ceilingGeometry, ceilingMaterial);
+  
+  // Position the ceiling
+  ceiling.rotation.x = Math.PI / 2;
+  ceiling.position.y = ceilingData.height || WALL_HEIGHT;
+  
+  ceiling.receiveShadow = true;
+  
+  // Add userData
+  ceiling.userData = {
+    id: ceilingData.id,
+    type: 'ceiling',
+    roomId: ceilingData.roomId,
+    floor: ceilingData.floor
+  };
+  
+  // Add to scene
+  scene.add(ceiling);
+  ceilings.push(ceiling);
+});
+}
+function createDoors(doorsData) {
+  doorsData.forEach(doorData => {
+    // Get door dimensions
+    const doorWidth = doorData.width || DOOR_WIDTH;
+    const doorHeight = doorData.height || DOOR_HEIGHT;
+    const doorDepth = 0.05; // Thin door
+    
+    // Create door geometry
+    const doorGeometry = new THREE.BoxGeometry(doorWidth, doorHeight, doorDepth);
+    
+    // Create door material
+    const doorMaterial = new THREE.MeshStandardMaterial({
+      map: textures.door.map,
+      normalMap: textures.door.normalMap,
+      roughnessMap: textures.door.roughnessMap,
+      roughness: 0.7,
+      metalness: 0.1
+    });
+    
+    // Create the door mesh
+    const door = new THREE.Mesh(doorGeometry, doorMaterial);
+    
+    // Position the door
+    door.position.set(
+      doorData.assetPosition.x,
+      doorData.assetPosition.y + doorHeight / 2,
+      doorData.assetPosition.z
+    );
+    door.rotation.y = (doorData.rotation || 0) * Math.PI / 180;
+    
+    door.castShadow = true;
+    door.receiveShadow = true;
+    
+    // Add userData
+    door.userData = {
+      id: doorData.id,
+      type: 'door',
+      floor: doorData.floor
+    };
+    
+    // Add to scene
+    scene.add(door);
+    doors.push(door);
+    
+    // Add doorframe
+    createDoorFrame(doorData, doorWidth, doorHeight);
+  });
+}
+
+function createDoorFrame(doorData, doorWidth, doorHeight) {
+  // Frame dimensions
+  const frameWidth = doorWidth + 0.1;
+  const frameHeight = doorHeight + 0.1;
+  const frameDepth = 0.1;
+  const frameThickness = 0.05;
+  
+  // Create frame material
+  const frameMaterial = new THREE.MeshStandardMaterial({
+    map: textures.door.map,
+    normalMap: textures.door.normalMap,
+    roughnessMap: textures.door.roughnessMap,
+    roughness: 0.7,
+    metalness: 0.1,
+    color: 0x5c4033  // Darker brown for the frame
+  });
+  
+  // Create frame group
+  const frameGroup = new THREE.Group();
+  
+  // Top frame
+  const topFrame = new THREE.Mesh(
+    new THREE.BoxGeometry(frameWidth, frameThickness, frameDepth),
+    frameMaterial
+  );
+  topFrame.position.y = frameHeight / 2;
+  frameGroup.add(topFrame);
+  
+  // Left frame
+  const leftFrame = new THREE.Mesh(
+    new THREE.BoxGeometry(frameThickness, frameHeight, frameDepth),
+    frameMaterial
+  );
+  leftFrame.position.x = -frameWidth / 2;
+  frameGroup.add(leftFrame);
+  
+  // Right frame
+  const rightFrame = new THREE.Mesh(
+    new THREE.BoxGeometry(frameThickness, frameHeight, frameDepth),
+    frameMaterial
+  );
+  rightFrame.position.x = frameWidth / 2;
+  frameGroup.add(rightFrame);
+  
+  // Position the frame
+  frameGroup.position.set(
+    doorData.assetPosition.x,
+    doorData.assetPosition.y + frameHeight / 2,
+    doorData.assetPosition.z
+  );
+  frameGroup.rotation.y = (doorData.rotation || 0) * Math.PI / 180;
+  
+  // Add to scene
+  scene.add(frameGroup);
+  doors.push(frameGroup);
+}
+
+function createWindows(windowsData) {
+  windowsData.forEach(windowData => {
+    // Get window dimensions
+    const windowWidth = windowData.width || WINDOW_WIDTH;
+    const windowHeight = windowData.height || WINDOW_HEIGHT;
+    const windowDepth = 0.02; // Thin window
+    
+    // Create window geometry
+    const windowGeometry = new THREE.BoxGeometry(windowWidth, windowHeight, windowDepth);
+    
+    // Create window material
+    const windowMaterial = new THREE.MeshStandardMaterial({
+      map: textures.window.map,
+      normalMap: textures.window.normalMap,
+      roughnessMap: textures.window.roughnessMap,
+      roughness: 0.3,
+      metalness: 0.5,
+      transparent: true,
+      opacity: 0.6
+    });
+    
+    // Create the window mesh
+    const window = new THREE.Mesh(windowGeometry, windowMaterial);
+    
+    // Position the window
+    window.position.set(
+      windowData.assetPosition.x,
+      windowData.assetPosition.y + windowHeight / 2,
+      windowData.assetPosition.z
+    );
+    window.rotation.y = (windowData.rotation || 0) * Math.PI / 180;
+    
+    // Add userData
+    window.userData = {
+      id: windowData.id,
+      type: 'window',
+      floor: windowData.floor
+    };
+    
+    // Add to scene
+    scene.add(window);
+    windows.push(window);
+    
+    // Add window frame
+    createWindowFrame(windowData, windowWidth, windowHeight);
+  });
+}
+
+function createWindowFrame(windowData, windowWidth, windowHeight) {
+  // Frame dimensions
+  const frameWidth = windowWidth + 0.1;
+  const frameHeight = windowHeight + 0.1;
+  const frameDepth = 0.1;
+  const frameThickness = 0.05;
+  
+  // Create frame material
+  const frameMaterial = new THREE.MeshStandardMaterial({
+    map: textures.wall.map,
+    normalMap: textures.wall.normalMap,
+    roughnessMap: textures.wall.roughnessMap,
+    roughness: 0.7,
+    metalness: 0.1,
+    color: 0xf5f5f5  // White frame
+  });
+  
+  // Create frame group
+  const frameGroup = new THREE.Group();
+  
+  // Top frame
+  const topFrame = new THREE.Mesh(
+    new THREE.BoxGeometry(frameWidth, frameThickness, frameDepth),
+    frameMaterial
+  );
+  topFrame.position.y = frameHeight / 2;
+  frameGroup.add(topFrame);
+  
+  // Bottom frame
+  const bottomFrame = new THREE.Mesh(
+    new THREE.BoxGeometry(frameWidth, frameThickness, frameDepth),
+    frameMaterial
+  );
+  bottomFrame.position.y = -frameHeight / 2;
+  frameGroup.add(bottomFrame);
+  
+  // Left frame
+  const leftFrame = new THREE.Mesh(
+    new THREE.BoxGeometry(frameThickness, frameHeight, frameDepth),
+    frameMaterial
+  );
+  leftFrame.position.x = -frameWidth / 2;
+  frameGroup.add(leftFrame);
+  
+  // Right frame
+  const rightFrame = new THREE.Mesh(
+    new THREE.BoxGeometry(frameThickness, frameHeight, frameDepth),
+    frameMaterial
+  );
+  rightFrame.position.x = frameWidth / 2;
+  frameGroup.add(rightFrame);
+  
+  // Position the frame
+  frameGroup.position.set(
+    windowData.assetPosition.x,
+    windowData.assetPosition.y + frameHeight / 2,
+    windowData.assetPosition.z
+  );
+  frameGroup.rotation.y = (windowData.rotation || 0) * Math.PI / 180;
+  
+  // Add to scene
+  scene.add(frameGroup);
+  windows.push(frameGroup);
+}
+
+function createFurniture(furnitureData) {
+    try {
+        furnitureData.forEach(item => {
+            let furniture;
+            
+            // Create different furniture based on type
+            switch (item.assetType) {
+                case 'table':
+                    furniture = createTable(item);
+                    break;
+                case 'chair':
+                    furniture = createChair(item);
+                    break;
+                case 'bed':
+                    furniture = createBed(item);
+                    break;
+                case 'sofa':
+                    furniture = createSofa(item);
+                    break;
+                case 'cabinet':
+                    furniture = createCabinet(item);
+                    break;
+                default:
+                    console.warn(`Unknown furniture type: ${item.assetType}`);
+                    return;
+            }
+            
+            // Position the furniture
+            if (furniture) {
+                furniture.position.set(
+                    item.assetPosition.x,
+                    item.assetPosition.y,
+                    item.assetPosition.z
+                );
+                furniture.rotation.y = (item.rotation || 0) * Math.PI / 180;
+                
+                // Add userData
+                furniture.userData = {
+                    id: item.id,
+                    type: 'furniture',
+                    furnitureType: item.assetType,
+                    roomId: item.roomId,
+                    floor: item.floor
+                };
+                
+                // Add to scene
+                scene.add(furniture);
+                furniture.push(furniture);  // Changed from furnitureArray to furniture
+            }
+        });
+    } catch (error) {
+        console.error("Error creating furniture:", error);
+        throw error;
+    }
+}
+
+function createTable(item) {
+  // Table dimensions
+  const tableWidth = 1.2;
+  const tableHeight = 0.8;
+  const tableDepth = 0.8;
+  const legWidth = 0.08;
+  
+  // Create table group
+  const table = new THREE.Group();
+  
+  // Create table material
+  const tableMaterial = new THREE.MeshStandardMaterial({
+    map: textures.furniture.table,
+    roughness: 0.7,
+    metalness: 0.1
+  });
+  
+  // Create table top
+  const tableTop = new THREE.Mesh(
+    new THREE.BoxGeometry(tableWidth, 0.05, tableDepth),
+    tableMaterial
+  );
+  tableTop.position.y = tableHeight;
+  tableTop.castShadow = true;
+  tableTop.receiveShadow = true;
+  table.add(tableTop);
+  
+  // Create table legs
+  const legPositions = [
+    { x: -tableWidth/2 + legWidth/2, z: -tableDepth/2 + legWidth/2 },
+    { x: tableWidth/2 - legWidth/2, z: -tableDepth/2 + legWidth/2 },
+    { x: tableWidth/2 - legWidth/2, z: tableDepth/2 - legWidth/2 },
+    { x: -tableWidth/2 + legWidth/2, z: tableDepth/2 - legWidth/2 }
+  ];
+  
+  legPositions.forEach(pos => {
+    const leg = new THREE.Mesh(
+      new THREE.BoxGeometry(legWidth, tableHeight, legWidth),
+      tableMaterial
+    );
+    leg.position.set(pos.x, tableHeight/2, pos.z);
+    leg.castShadow = true;
+    leg.receiveShadow = true;
+    table.add(leg);
+  });
+  
+  return table;
+}
+
+function createChair(item) {
+  // Chair dimensions
+  const seatWidth = 0.5;
+  const seatHeight = 0.45;
+  const seatDepth = 0.5;
+  const backHeight = 0.4;
+  const legWidth = 0.05;
+  
+  // Create chair group
+  const chair = new THREE.Group();
+  
+  // Create chair material
+  const chairMaterial = new THREE.MeshStandardMaterial({
+    map: textures.furniture.chair,
+    roughness: 0.7,
+    metalness: 0.1
+  });
+  
+  // Create chair seat
+  const seat = new THREE.Mesh(
+    new THREE.BoxGeometry(seatWidth, 0.05, seatDepth),
+    chairMaterial
+  );
+  seat.position.y = seatHeight;
+  seat.castShadow = true;
+  seat.receiveShadow = true;
+  chair.add(seat);
+  
+  // Create chair back
+  const back = new THREE.Mesh(
+    new THREE.BoxGeometry(seatWidth, backHeight, 0.05),
+    chairMaterial
+  );
+  back.position.set(0, seatHeight + backHeight/2, seatDepth/2 - 0.025);
+  back.castShadow = true;
+  back.receiveShadow = true;
+  chair.add(back);
+  
+  // Create chair legs
+  const legPositions = [
+    { x: -seatWidth/2 + legWidth/2, z: -seatDepth/2 + legWidth/2 },
+    { x: seatWidth/2 - legWidth/2, z: -seatDepth/2 + legWidth/2 },
+    { x: seatWidth/2 - legWidth/2, z: seatDepth/2 - legWidth/2 },
+    { x: -seatWidth/2 + legWidth/2, z: seatDepth/2 - legWidth/2 }
+  ];
+  
+  legPositions.forEach(pos => {
+    const leg = new THREE.Mesh(
+      new THREE.BoxGeometry(legWidth, seatHeight, legWidth),
+      chairMaterial
+    );
+    leg.position.set(pos.x, seatHeight/2, pos.z);
+    leg.castShadow = true;
+    leg.receiveShadow = true;
+    chair.add(leg);
+  });
+  
+  return chair;
+}
+
+function createBed(item) {
+  // Bed dimensions
+  const bedWidth = 1.8;
+  const bedHeight = 0.5;
+  const bedDepth = 2.2;
+  const mattressHeight = 0.2;
+  
+  // Create bed group
+  const bed = new THREE.Group();
+  
+  // Create bed frame material
+  const frameMaterial = new THREE.MeshStandardMaterial({
+    map: textures.furniture.table,
+    roughness: 0.7,
+    metalness: 0.1
+  });
+  
+  // Create mattress material
+  const mattressMaterial = new THREE.MeshStandardMaterial({
+    map: textures.furniture.bed,
+    roughness: 0.9,
+    metalness: 0.0
+  });
+  
+  // Create bed frame
+  const frame = new THREE.Mesh(
+    new THREE.BoxGeometry(bedWidth, bedHeight - mattressHeight, bedDepth),
+    frameMaterial
+  );
+  frame.position.y = (bedHeight - mattressHeight) / 2;
+  frame.castShadow = true;
+  frame.receiveShadow = true;
+  bed.add(frame);
+  
+  // Create mattress
+  const mattress = new THREE.Mesh(
+    new THREE.BoxGeometry(bedWidth - 0.1, mattressHeight, bedDepth - 0.1),
+    mattressMaterial
+  );
+  mattress.position.y = bedHeight - mattressHeight/2;
+  mattress.castShadow = true;
+  mattress.receiveShadow = true;
+  bed.add(mattress);
+  
+  // Create headboard
+  const headboard = new THREE.Mesh(
+    new THREE.BoxGeometry(bedWidth, 0.6, 0.08),
+    frameMaterial
+  );
+  headboard.position.set(0, bedHeight + 0.3, bedDepth/2 - 0.04);
+  headboard.castShadow = true;
+  headboard.receiveShadow = true;
+  bed.add(headboard);
+  
+  // Create pillow
+  const pillow1 = new THREE.Mesh(
+    new THREE.BoxGeometry(0.5, 0.1, 0.7),
+    new THREE.MeshStandardMaterial({ color: 0xffffff })
+  );
+  pillow1.position.set(-0.3, bedHeight + 0.05, bedDepth/2 - 0.4);
+  bed.add(pillow1);
+  
+  const pillow2 = new THREE.Mesh(
+    new THREE.BoxGeometry(0.5, 0.1, 0.7),
+    new THREE.MeshStandardMaterial({ color: 0xffffff })
+  );
+  pillow2.position.set(0.3, bedHeight + 0.05, bedDepth/2 - 0.4);
+  bed.add(pillow2);
+  
+  // Create blanket
+  const blanket = new THREE.Mesh(
+    new THREE.BoxGeometry(bedWidth - 0.2, 0.05, bedDepth - 1),
+    new THREE.MeshStandardMaterial({ 
+      map: textures.furniture.bed,
+      color: 0x4682b4 
+    })
+  );
+  blanket.position.set(0, bedHeight + 0.125, -0.1);
+  bed.add(blanket);
+  
+  return bed;
+}
+
+function createSofa(item) {
+  // Sofa dimensions
+  const sofaWidth = 2.0;
+  const sofaHeight = 0.8;
+  const sofaDepth = 0.9;
+  const seatHeight = 0.45;
+  
+  // Create sofa group
+  const sofa = new THREE.Group();
+  
+  // Create sofa material
+  const sofaMaterial = new THREE.MeshStandardMaterial({
+    map: textures.furniture.sofa,
+    roughness: 0.9,
+    metalness: 0.0
+  });
+  
+  // Create sofa base
+  const base = new THREE.Mesh(
+    new THREE.BoxGeometry(sofaWidth, seatHeight, sofaDepth),
+    sofaMaterial
+  );
+  base.position.y = seatHeight / 2;
+  base.castShadow = true;
+  base.receiveShadow = true;
+  sofa.add(base);
+  
+  // Create sofa back
+  const back = new THREE.Mesh(
+    new THREE.BoxGeometry(sofaWidth, sofaHeight - seatHeight, 0.2),
+    sofaMaterial
+  );
+  back.position.set(0, sofaHeight/2 + seatHeight/2, sofaDepth/2 - 0.1);
+  back.castShadow = true;
+  back.receiveShadow = true;
+  sofa.add(back);
+  
+  // Create sofa arms
+  const armLeft = new THREE.Mesh(
+    new THREE.BoxGeometry(0.2, sofaHeight - seatHeight/2, sofaDepth),
+    sofaMaterial
+  );
+  armLeft.position.set(-sofaWidth/2 + 0.1, sofaHeight/2, 0);
+  armLeft.castShadow = true;
+  armLeft.receiveShadow = true;
+  sofa.add(armLeft);
+  
+  const armRight = new THREE.Mesh(
+    new THREE.BoxGeometry(0.2, sofaHeight - seatHeight/2, sofaDepth),
+    sofaMaterial
+  );
+  armRight.position.set(sofaWidth/2 - 0.1, sofaHeight/2, 0);
+  armRight.castShadow = true;
+  armRight.receiveShadow = true;
+  sofa.add(armRight);
+  
+  // Create cushions
+  const cushionWidth = (sofaWidth - 0.4) / 3;
+  
+  for (let i = 0; i < 3; i++) {
+    const cushion = new THREE.Mesh(
+      new THREE.BoxGeometry(cushionWidth - 0.1, 0.1, sofaDepth - 0.3),
+      new THREE.MeshStandardMaterial({ 
+        map: textures.furniture.sofa,
+        color: 0x808080,
+        roughness: 0.9
+      })
+    );
+    
+    cushion.position.set(
+      -sofaWidth/2 + 0.25 + cushionWidth/2 + i * cushionWidth,
+      seatHeight + 0.05,
+      -0.05
+    );
+    cushion.castShadow = true;
+    sofa.add(cushion);
+  }
+  
+  return sofa;
+}
+
+function createCabinet(item) {
+  // Cabinet dimensions
+  const cabinetWidth = 1.2;
+  const cabinetHeight = 1.6;
+  const cabinetDepth = 0.5;
+  
+  // Create cabinet group
+  const cabinet = new THREE.Group();
+  
+  // Create cabinet material
+  const cabinetMaterial = new THREE.MeshStandardMaterial({
+    map: textures.furniture.cabinet,
+    roughness: 0.6,
+    metalness: 0.1
+  });
+  
+  // Create handle material
+  const handleMaterial = new THREE.MeshStandardMaterial({
+    color: 0x888888,
+    roughness: 0.3,
+    metalness: 0.8
+  });
+  
+  // Create cabinet body
+  const body = new THREE.Mesh(
+    new THREE.BoxGeometry(cabinetWidth, cabinetHeight, cabinetDepth),
+    cabinetMaterial
+  );
+  body.position.y = cabinetHeight / 2;
+  body.castShadow = true;
+  body.receiveShadow = true;
+  cabinet.add(body);
+  
+  // Create doors
+  const doorWidth = cabinetWidth / 2 - 0.05;
+  
+  // Left door
+  const leftDoor = new THREE.Mesh(
+    new THREE.BoxGeometry(doorWidth, cabinetHeight - 0.1, 0.05),
+    cabinetMaterial
+  );
+  leftDoor.position.set(-cabinetWidth/4, cabinetHeight/2, cabinetDepth/2 + 0.025);
+  cabinet.add(leftDoor);
+  
+  // Right door
+  const rightDoor = new THREE.Mesh(
+    new THREE.BoxGeometry(doorWidth, cabinetHeight - 0.1, 0.05),
+    cabinetMaterial
+  );
+  rightDoor.position.set(cabinetWidth/4, cabinetHeight/2, cabinetDepth/2 + 0.025);
+  cabinet.add(rightDoor);
+  
+  // Add handles
+  const handleSize = 0.05;
+  
+  const leftHandle = new THREE.Mesh(
+    new THREE.BoxGeometry(handleSize, handleSize * 3, handleSize),
+    handleMaterial
+  );
+  leftHandle.position.set(-cabinetWidth/4 + doorWidth/2 - 0.1, cabinetHeight/2, cabinetDepth/2 + 0.05);
+  cabinet.add(leftHandle);
+  
+  const rightHandle = new THREE.Mesh(
+    new THREE.BoxGeometry(handleSize, handleSize * 3, handleSize),
+    handleMaterial
+  );
+  rightHandle.position.set(cabinetWidth/4 - doorWidth/2 + 0.1, cabinetHeight/2, cabinetDepth/2 + 0.05);
+  cabinet.add(rightHandle);
+  
+  return cabinet;
+}
+
+function setupFloorNavigation(data) {
+  // Determine number of floors
+  const floors = [...new Set(data.rooms.map(room => room.floor))].sort((a, b) => a - b);
+  
+  // Clear existing buttons
+  const floorSelector = document.getElementById('floor-selector');
+  floorSelector.innerHTML = '';
+  
+  // Create floor buttons
+  floors.forEach(floor => {
+    const button = document.createElement('button');
+    button.className = 'control-button';
+    button.dataset.floor = floor;
+    button.textContent = floor === 0 ? 'Ground Floor' : `Floor ${floor}`;
+    
+    if (floor === currentFloor) {
+      button.classList.add('active');
+    }
+    
+    button.addEventListener('click', () => {
+      // Remove active class from all buttons
+      document.querySelectorAll('#floor-selector .control-button').forEach(btn => {
+        btn.classList.remove('active');
+      });
+      
+      // Add active class to clicked button
+      button.classList.add('active');
+      
+      // Change floor
+      currentFloor = floor;
+      updateFloorVisibility();
+    });
+    
+    floorSelector.appendChild(button);
+  });
+}
+
+function updateFloorVisibility() {
+  // Hide/show elements based on floor
+  walls.forEach(wall => {
+    wall.visible = wall.userData.floor === currentFloor;
+  });
+  
+  floors.forEach(floor => {
+    floor.visible = floor.userData.floor === currentFloor;
+  });
+  
+  ceilings.forEach(ceiling => {
+    ceiling.visible = ceiling.userData.floor === currentFloor;
+  });
+  
+  doors.forEach(door => {
+    door.visible = door.userData.floor === currentFloor;
+  });
+  
+  windows.forEach(window => {
+    window.visible = window.userData.floor === currentFloor;
+  });
+  
+  furniture.forEach(item => {
+    item.visible = item.userData.floor === currentFloor;
+  });
+}
+
+function updateStatsPanel() {
+  // Calculate statistics
+  const stats = {
+    totalRooms: rooms.length,
+    totalFloors: [...new Set(rooms.map(room => room.floor))].length,
+    totalWalls: walls.length,
+    totalDoors: doors.length / 2, // Divide by 2 because we count doors and frames separately
+    totalWindows: windows.length / 2, // Divide by 2 because we count windows and frames separately
+    totalFurniture: furniture.length
+  };
+  
+  // Update the UI
+  const statsPanel = document.getElementById('stats');
+  statsPanel.innerHTML = `
+    <p><strong>Rooms:</strong> ${stats.totalRooms}</p>
+    <p><strong>Floors:</strong> ${stats.totalFloors}</p>
+    <p><strong>Walls:</strong> ${stats.totalWalls}</p>
+    <p><strong>Doors:</strong> ${stats.totalDoors}</p>
+    <p><strong>Windows:</strong> ${stats.totalWindows}</p>
+    <p><strong>Furniture:</strong> ${stats.totalFurniture}</p>
+  `;
+}
+
+function toggleGroup(group, buttonId) {
+  const button = document.getElementById(buttonId);
+  const visible = !button.classList.contains('active');
+  
+  if (visible) {
+    button.classList.add('active');
+  } else {
+    button.classList.remove('active');
+  }
+  
+  group.forEach(item => {
+    if (item.userData.floor === currentFloor) {
+      item.visible = visible;
+    }
+  });
+}
+
+function setTopView() {
+  inFirstPersonMode = false;
+  
+  // Reset camera position to top view
+  camera.position.set(0, 20, 0);
+  camera.lookAt(0, 0, 0);
+  
+  // Update UI
+  document.getElementById('top-view').classList.add('active');
+  document.getElementById('first-person').classList.remove('active');
+}
+
+function toggleFirstPersonMode() {
+  inFirstPersonMode = !inFirstPersonMode;
+  
+  if (inFirstPersonMode) {
+    // Set camera to first person height
+    const height = parseFloat(document.getElementById('camera-height').value);
+    camera.position.set(0, height, 0);
+    
+    // Update UI
+    document.getElementById('first-person').classList.add('active');
+    document.getElementById('top-view').classList.remove('active');
+  } else {
+    // Reset to orbiting camera
+    resetCamera();
+  }
+}
+
+function resetCamera() {
+  inFirstPersonMode = false;
+  
+  // Reset to default position
+  camera.position.set(0, 10, 15);
+  camera.lookAt(0, 0, 0);
+  
+  // Update UI
+  document.getElementById('first-person').classList.remove('active');
+  document.getElementById('top-view').classList.remove('active');
+}
+
+function onWindowResize() {
+  camera.aspect = window.innerWidth / window.innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(window.innerWidth, window.innerHeight);
+}
+
+function onMouseMove(event) {
+  // Calculate mouse position in normalized device coordinates
+  mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
+  mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
+  
+  // Update the tooltip
+  updateTooltip();
+}
+
+function onClick(event) {
+  // Check if we hit anything
+  raycaster.setFromCamera(mouse, camera);
+  const intersects = raycaster.intersectObjects(scene.children, true);
+  
+  if (intersects.length > 0) {
+    const object = intersects[0].object;
+    
+    // Find the parent with userData
+    let target = object;
+    while (target && !target.userData?.type) {
+      target = target.parent;
+    }
+    
+    if (target && target.userData) {
+      // Handle click on object
+      displayObjectInfo(target);
+    }
+  }
+}
+
+function updateTooltip() {
+  // Check if the mouse is over any object
+  raycaster.setFromCamera(mouse, camera);
+  const intersects = raycaster.intersectObjects(scene.children, true);
+  
+  const tooltip = document.getElementById('tooltip');
+  
+  if (intersects.length > 0) {
+    const object = intersects[0].object;
+    
+    // Find the parent with userData
+    let target = object;
+    while (target && !target.userData?.type) {
+      target = target.parent;
+    }
+    
+    if (target && target.userData) {
+      // Show tooltip
+      tooltip.style.display = 'block';
+      tooltip.style.left = `${event.clientX + 15}px`;
+      tooltip.style.top = `${event.clientY + 15}px`;
+      
+      // Set tooltip content
+      let content = '';
+      
+      switch (target.userData.type) {
+        case 'wall':
+          content = `Wall (${target.userData.roomId})`;
+          break;
+        case 'floor':
+          content = `Floor (${target.userData.roomId})`;
+          break;
+        case 'ceiling':
+          content = `Ceiling (${target.userData.roomId})`;
+          break;
+        case 'door':
+          content = `Door (${target.userData.id})`;
+          break;
+        case 'window':
+          content = `Window (${target.userData.id})`;
+          break;
+        case 'furniture':
+          content = `${target.userData.furnitureType.charAt(0).toUpperCase() + target.userData.furnitureType.slice(1)} (${target.userData.roomId})`;
+          break;
+      }
+      
+      tooltip.textContent = content;
+      
+      // Highlight the object
+      if (intersectedObject && intersectedObject !== target) {
+        resetHighlight(intersectedObject);
+      }
+      
+      highlightObject(target);
+      intersectedObject = target;
+      
+      return;
+    }
+  }
+  
+  // Hide tooltip if not over any object
+  tooltip.style.display = 'none';
+  
+  // Reset highlight
+  if (intersectedObject) {
+    resetHighlight(intersectedObject);
+    intersectedObject = null;
+  }
+}
+
+function highlightObject(object) {
+  // Store original material
+  if (!object.userData.originalMaterial && object.material) {
+    object.userData.originalMaterial = object.material.clone();
+    
+       // Create highlight material
+       const highlightMaterial = new THREE.MeshStandardMaterial({
+        color: 0x00ff00,
+        emissive: 0x004400,
+        metalness: 0.5,
+        roughness: 0.5,
+        transparent: true,
+        opacity: 0.7
+    });
+    
+    // Apply highlight material
+    object.material = highlightMaterial;
+  }
+}
+
+function resetHighlight(object) {
+  // Restore original material if it exists
+  if (object.userData.originalMaterial) {
+    object.material = object.userData.originalMaterial;
+    delete object.userData.originalMaterial;
+  }
+}
+
+function displayObjectInfo(object) {
+  // Create info content based on object type
+  let infoContent = `<h3>${object.userData.type.replace(/_/g, ' ').toUpperCase()}</h3>`;
+  
+  switch(object.userData.type) {
+    case 'wall':
+      infoContent += `<p>Room: ${object.userData.roomId}</p>`;
+      infoContent += `<p>Floor: ${object.userData.floor}</p>`;
+      break;
+    case 'door':
+    case 'window':
+      infoContent += `<p>ID: ${object.userData.id}</p>`;
+      infoContent += `<p>Floor: ${object.userData.floor}</p>`;
+      break;
+    case 'furniture':
+      infoContent += `<p>Type: ${object.userData.furnitureType}</p>`;
+      infoContent += `<p>Room: ${object.userData.roomId}</p>`;
+      break;
+  }
+  
+  // Update info panel
+  const infoPanel = document.getElementById('info-panel');
+  infoPanel.querySelector('#stats').innerHTML = infoContent;
+}
+
+function onKeyDown(event) {
+  keyStates[event.key.toLowerCase()] = true;
+  
+  // Handle number keys for floor selection
+  if (event.key >= '1' && event.key <= '9') {
+    const floorIndex = parseInt(event.key) - 1;
+    const floorButtons = document.querySelectorAll('#floor-selector button');
+    if (floorIndex < floorButtons.length) {
+      floorButtons[floorIndex].click();
+    }
+  }
+}
+
+function onKeyUp(event) {
+  keyStates[event.key.toLowerCase()] = false;
+}
+
+function animate() {
+  requestAnimationFrame(animate);
+  
+  // Update controls
+  controls.update();
+  
+  // Update raycaster
+  raycaster.setFromCamera(mouse, camera);
+  
+  // Render the scene
+  renderer.render(scene, camera);
+}
+
+// Start the animation loop
+animate();
+</script>
+</body>
+</html>
