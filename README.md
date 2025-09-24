@@ -6,7 +6,7 @@
 
 House Planner is an innovative tool that leverages a fine-tuned FLAN-T5 model to generate house plans based on user-defined specifications. This project provides an intuitive graphical user interface (GUI) for users to input their requirements and visualize the generated floor plan. Ideal for architects, designers, and individuals looking to create custom living spaces, House Planner streamlines the design process and offers a creative solution for architectural planning.
 
-***
+
 
 ## Key Features ✨
 
@@ -20,7 +20,7 @@ House Planner is an innovative tool that leverages a fine-tuned FLAN-T5 model to
 
 - **Real-Time Validation**: Includes a validation module to ensure the generated house plan adheres to architectural best practices and user constraints.
 
-***
+
 
 ## How It Works ⚙️
 
@@ -34,7 +34,7 @@ The application follows a streamlined workflow to generate and display house pla
 
 4. **Visualization**: A 3D representation of the house plan is created and displayed in an HTML file for interactive viewing.
 
-***
+
 
 ## Technology Stack 🛠️
 
@@ -48,7 +48,7 @@ The application follows a streamlined workflow to generate and display house pla
 
 - **Jupyter Notebook**: For model training, fine-tuning, and experimentation.
 
-***
+
 
 ## Installation and Setup 🚀
 
@@ -75,7 +75,7 @@ To get House Planner up and running on your local machine, follow these steps:
 
 3. **Download Pre-trained Models**: Ensure you have the fine-tuned FLAN-T5 model files in the `my-flan-model/` directory.
 
-***
+
 
 ## Usage 🎯
 
@@ -90,7 +90,7 @@ python GUI.py
 
 Enter your desired specifications in the GUI and click "Generate" to see the 3D visualization of your custom house plan. For details on the model training process, refer to the `Train_Main.ipynb` notebook.
 
-***
+
 
 ## Contact 📧
 
