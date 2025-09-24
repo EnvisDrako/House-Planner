@@ -1,0 +1,19 @@
+# Core Application
+torch
+transformers
+Pillow
+
+# GUI
+tk
+
+# Data Handling & Training
+pandas
+scikit-learn
+datasets
+accelerate
+bitsandbytes
+
+# Notebook Environment
+jupyter
+ipykernel
+ipywidgets
